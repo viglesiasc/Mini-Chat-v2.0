@@ -44,8 +44,7 @@ class ChatServer {
         do {
             try serverSocket.listen(on: port)
             //let serverSocket = try Socket.create(family: .inet, type: .datagram, proto: .udp)
-           
-            
+                       
             // recepción de mensajes en hilo paralelo
             self.datagramReader = DatagramReader(socket: self.serverSocket, capacity: 1024){ (buffer, bytesRead, address) in 
                 self.handler(buffer: buffer, bytesRead: bytesRead, address:address!)
