@@ -1,1 +1,3 @@
-# Mini-Chat-v2.0
+# p2
+
+Client / Server chat service with asynchronous communications.
