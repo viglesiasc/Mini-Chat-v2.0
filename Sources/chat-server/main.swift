@@ -15,7 +15,10 @@ var offset: Int = 0
 var recibedType: ChatMessage
 
 
+
 let port = Int(CommandLine.arguments[1])!
+let readMaxCapacity = Int(CommandLine.arguments[2])!
+
 do{
     let chatServer = try ChatServer(port: port)
 
