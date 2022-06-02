@@ -24,6 +24,6 @@ public protocol Queue {
     //func contains(where predicate: (Element) -> Bool) -> Bool
     //func findFirst(where predicate: (Element) -> Bool) -> Element?
     
-    //mutating func remove(where predicate: (Element) -> Bool)
+    mutating func remove(where predicate: (Element) -> Bool)
 }
 

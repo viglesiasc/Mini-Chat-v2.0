@@ -27,4 +27,8 @@ public struct ArrayQueue<Element> : Queue {
         self.maxCapacity = maxCapacity
     }
 
+    public mutating func remove(where predicate: (Element) -> Bool) {
+        storage.removeAll(where: predicate)
+    }
+
 }

@@ -50,7 +50,20 @@ class ChatServer {
         }
     } 
 
+    public struct OldClient {
+        var nick: String
+        var lastUpdateTime: Date
+        
+        public init(nick: String, lastUpdateTime: Date) {
+            self.nick = nick
+            self.lastUpdateTime = lastUpdateTime 
+
+        }
+    }
+
     public var clients = ArrayQueue<ActiveClient>(maxCapacity: readMaxCapacity)
+    public var inactiveClients = ArrayStack<OldClient>()
+
     
     
     
@@ -87,10 +100,16 @@ class ChatServer {
                         print("\(client.nick) \(clientIP):\(clientPort) \(convertDate(client.lastUpdateTime))")
 
                     }
+                    print("")
                 }
                 if adminCommand.lowercased() == "o" {
                     print("OLD CLIENTS")
                     print("==============")
+                    inactiveClients.forEach { client in
+                        print("\(client.nick): \(convertDate(client.lastUpdateTime))")
+
+                    }
+                    print("")
                 }
             } while true
             
@@ -120,6 +139,8 @@ extension ChatServer {
                     throw CollectionsError.maxCapacityReached
                 }
             }
+
+
 
             // -- recibir tipo de mensaje
             var offset: Int = 0
@@ -159,6 +180,10 @@ extension ChatServer {
 
             case .Logout:
                 print("LOGOUT received from \(recibedNick)")
+                // -- add client to OLD CLIENTS list
+                inactiveClients.push(OldClient(nick: recibedNick, lastUpdateTime: Date()))
+                // -- remevo the client from ACTIVE CLIENTS list
+                clients.remove {$0.nick == recibedNick}
                 writeBuffer.removeAll()
                 offset = 0
                 let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(recibedNick) leaves ")
