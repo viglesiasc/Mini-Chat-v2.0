@@ -171,6 +171,20 @@ extension ChatServer {
                     withUnsafeBytes(of: welcomeMessage.accepted) { writeBuffer.append(contentsOf: $0) }
                     try serverSocket.write(from: writeBuffer, to: address)
                     writeBuffer.removeAll()
+
+                    // -- send a message to other clients
+                    offset = 0
+                    let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) joins")
+                    withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
+                    withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
+                    withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
+                    try clients.forEach { client in
+                        if client.nick != nickReceived {
+                            try self.serverSocket.write(from: writeBuffer, to: client.address)
+                            //print("\(client.address)")
+                        }
+                    }
+                    writeBuffer.removeAll()
                 } catch {
                     print("\(error)")
                 }
@@ -183,14 +197,22 @@ extension ChatServer {
                 inactiveClients.push(OldClient(nick: nickReceived, lastUpdateTime: Date()))
                 // -- remevo the client from ACTIVE CLIENTS list
                 clients.remove {$0.nick == nickReceived}
+                // -- send a message to other clients
                 writeBuffer.removeAll()
                 offset = 0
-                let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) leaves ")
+                let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) leaves")
                 withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                 withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
                 withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
-                try serverSocket.write(from: writeBuffer, to: address)
+                try clients.forEach { client in
+                    if client.nick != nickReceived {
+                        try self.serverSocket.write(from: writeBuffer, to: client.address)
+                        //print("\(client.address)")
+                    }
+                }
                 writeBuffer.removeAll()
+
+                
             
             default:
                 // -- recibir Text
@@ -198,17 +220,29 @@ extension ChatServer {
                     String(cString: $0.bindMemory(to: UInt8.self).baseAddress!)
                 } 
                 print("WRITER received from \(nickReceived): \(textReceived)")
+
+                // -- build response message to all clients
                 writeBuffer.removeAll()
                 offset = 0
                 let serverMessage = ServerMessage(type: ChatMessage.Server, nick: nickReceived, text: textReceived)
                 withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                 withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
                 withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
-                try serverSocket.write(from: writeBuffer, to: address)
-                writeBuffer.removeAll()
+                
                 // -- update date of the client
                 clients.remove {$0.nick == nickReceived}
                 clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date()))
+
+                // -- send message to all clients
+                try clients.forEach { client in
+                    if client.nick != nickReceived {
+                        try self.serverSocket.write(from: writeBuffer, to: client.address)
+                        //print("\(client.address)")
+                    }
+                    
+                }
+                
+                writeBuffer.removeAll()
 
             }
             readBuffer.removeAll()
