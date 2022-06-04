@@ -23,13 +23,6 @@ enum ChatServerError: Error {
     case protocolError
 }
 
-//struct ActiveClient {
-//    var nick: String
-//    var address: Socket.Address
-//    var lastUpdateTime: Date
-//}
-
-//var clients = ArrayQueue<ActiveClient>(maxCapacity: readMaxCapacity)
 
 class ChatServer {
     let port: Int
@@ -144,34 +137,40 @@ extension ChatServer {
 
             // -- recibir tipo de mensaje
             var offset: Int = 0
-            
-            let recibedType = readBuffer.withUnsafeBytes { $0.load(as: ChatMessage.self) }            
+            let typeReceived = readBuffer.withUnsafeBytes { $0.load(as: ChatMessage.self) }            
             offset += MemoryLayout<ChatMessage>.size
 
             // -- recibir Nick
-            let recibedNick = readBuffer.advanced(by:offset).withUnsafeBytes {
+            let nickReceived = readBuffer.advanced(by:offset).withUnsafeBytes {
                 String(cString: $0.bindMemory(to: UInt8.self).baseAddress!)
             }            
-            offset += recibedNick.count + 1
+            offset += nickReceived.count + 1
 
                     
 
 
-            switch recibedType {
+            switch typeReceived {
             case .Init:
-                print("INIT received from \(recibedNick)")
+                
                 do {
+                    // -- verify the capacity of client list and if the nick is already used
                     try checkCapacity(clients.count)
-                    //clients.enqueue(recibedNick)
-                    clients.enqueue(ActiveClient(nick: recibedNick, address: address, lastUpdateTime: Date()))
+                    let repeatedClient = clients.contains {$0.nick == nickReceived}
+                    let welcomeMessage = WelcomeMessage(type: ChatMessage.Welcome, accepted: !(repeatedClient))
+                    if !repeatedClient {
+                        clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date()))
+                        print("INIT received from \(nickReceived)")                        
+                    } else {
+                        print("INIT received from \(nickReceived): IGNORED. Nick already used")
+                    }
+
+                    // -- send first message to client
                     writeBuffer.removeAll()
                     offset = 0
-                    let welcomeMessage = WelcomeMessage(type: ChatMessage.Welcome, accepted: true)
                     withUnsafeBytes(of: welcomeMessage.type) { writeBuffer.append(contentsOf: $0) }
                     withUnsafeBytes(of: welcomeMessage.accepted) { writeBuffer.append(contentsOf: $0) }
                     try serverSocket.write(from: writeBuffer, to: address)
                     writeBuffer.removeAll()
-
                 } catch {
                     print("\(error)")
                 }
@@ -179,14 +178,14 @@ extension ChatServer {
                 
 
             case .Logout:
-                print("LOGOUT received from \(recibedNick)")
+                print("LOGOUT received from \(nickReceived)")
                 // -- add client to OLD CLIENTS list
-                inactiveClients.push(OldClient(nick: recibedNick, lastUpdateTime: Date()))
+                inactiveClients.push(OldClient(nick: nickReceived, lastUpdateTime: Date()))
                 // -- remevo the client from ACTIVE CLIENTS list
-                clients.remove {$0.nick == recibedNick}
+                clients.remove {$0.nick == nickReceived}
                 writeBuffer.removeAll()
                 offset = 0
-                let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(recibedNick) leaves ")
+                let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) leaves ")
                 withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                 withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
                 withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
@@ -195,20 +194,18 @@ extension ChatServer {
             
             default:
                 // -- recibir Text
-                let recibedText = readBuffer.advanced(by:offset).withUnsafeBytes {
+                let textReceived = readBuffer.advanced(by:offset).withUnsafeBytes {
                     String(cString: $0.bindMemory(to: UInt8.self).baseAddress!)
                 } 
-                print("WRITER received from \(recibedNick): \(recibedText)")
+                print("WRITER received from \(nickReceived): \(textReceived)")
                 writeBuffer.removeAll()
                 offset = 0
-                let serverMessage = ServerMessage(type: ChatMessage.Server, nick: recibedNick, text: recibedText)
+                let serverMessage = ServerMessage(type: ChatMessage.Server, nick: nickReceived, text: textReceived)
                 withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                 withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
                 withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
                 try serverSocket.write(from: writeBuffer, to: address)
                 writeBuffer.removeAll()
-                //print("holaaa")
-                //print("\(recibedText)")
             }
             readBuffer.removeAll()
             //print("\(clients)")

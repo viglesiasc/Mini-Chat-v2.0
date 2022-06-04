@@ -14,9 +14,9 @@ public struct ArrayQueue<Element> : Queue {
         return storage.remove(at: 0)
     }
     
-    //public func contains(_ value: Element) -> Bool {
-    //    return storage.contains(value)
-    //}
+    public func contains(where predicate: (Element) -> Bool) -> Bool {
+        storage.contains(where: predicate)
+    }
 
     public func forEach(_ body: (Element) throws -> Void) rethrows {
         try storage.forEach {try body($0)}

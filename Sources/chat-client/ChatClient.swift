@@ -51,14 +51,17 @@ class ChatClient {
                     // -- recibir mensaje WELCOME  
                     var offset = 0
                     readBuffer.removeAll()
-                    let (bytesRead, _) = try clientSocket.readDatagram(into: &readBuffer)
-                    let recibedType = readBuffer.withUnsafeBytes { $0.load(as: ChatMessage.self) } 
+                    let (_, _) = try clientSocket.readDatagram(into: &readBuffer)
+                    let typeReceived = readBuffer.withUnsafeBytes { $0.load(as: ChatMessage.self) } 
+                    guard typeReceived == ChatMessage.Welcome else { return nonStop = false}
                     offset += MemoryLayout<ChatMessage>.size
                     let accepted = readBuffer.withUnsafeBytes { $0.load(fromByteOffset: offset, as: Bool.self) } 
-                    //offset += MemoryLayout<Bool>.size
                     if accepted {
                         print("Mini-Chat v2.0: Welcome \(nick)")                        
-                    }   
+                    } else {
+                        print("Mini-Chat v2.0: IGNORED new user \(nick), nick already used")
+                        nonStop = false
+                    }
                     readBuffer.removeAll()
 
                 } else {
@@ -106,7 +109,7 @@ extension ChatClient {
         var offset = 0
            
         // -- recibir tipo de mensaje        
-        let recibedType = readBuffer.withUnsafeBytes { $0.load(as: ChatMessage.self) }            
+        let _ = readBuffer.withUnsafeBytes { $0.load(as: ChatMessage.self) }            
         offset += MemoryLayout<ChatMessage>.size
 
         let recibedNick = readBuffer.advanced(by:offset).withUnsafeBytes { String(cString: $0.bindMemory(to: UInt8.self).baseAddress!) }            

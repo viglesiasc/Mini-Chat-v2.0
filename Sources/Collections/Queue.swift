@@ -21,7 +21,7 @@ public protocol Queue {
     
     func forEach(_ body: (Element) throws -> Void) rethrows 
     
-    //func contains(where predicate: (Element) -> Bool) -> Bool
+    func contains(where predicate: (Element) -> Bool) -> Bool
     //func findFirst(where predicate: (Element) -> Bool) -> Element?
     
     mutating func remove(where predicate: (Element) -> Bool)
