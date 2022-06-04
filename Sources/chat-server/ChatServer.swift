@@ -206,6 +206,10 @@ extension ChatServer {
                 withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
                 try serverSocket.write(from: writeBuffer, to: address)
                 writeBuffer.removeAll()
+                // -- update date of the client
+                clients.remove {$0.nick == nickReceived}
+                clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date()))
+
             }
             readBuffer.removeAll()
             //print("\(clients)")
