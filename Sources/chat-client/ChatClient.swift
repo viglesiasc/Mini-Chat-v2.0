@@ -64,11 +64,9 @@ class ChatClient {
                     }
                     readBuffer.removeAll()
 
-                } else {
                     
-                    let _ = DatagramReader(socket: clientSocket, capacity: 1024) { (buffer, bytesRead, address) in 
-                        self.handler(buffer: buffer, bytesRead: bytesRead, address:address!, clientSocket: clientSocket)
-                    }
+
+                } else {
                     
                     print(">> ", terminator:"")
                     fflush(stdout)
@@ -92,6 +90,10 @@ class ChatClient {
                     readBuffer.removeAll()
                 }
                 
+                let _ = DatagramReader(socket: clientSocket, capacity: 2048) { (buffer, bytesRead, address) in 
+                    self.handler(buffer: buffer, bytesRead: bytesRead, address:address!, clientSocket: clientSocket)
+                }
+
             } catch let error {
                     print("Connection error: \(error)")
             }
@@ -118,8 +120,6 @@ extension ChatClient {
         let recibedText = readBuffer.advanced(by:offset).withUnsafeBytes { String(cString: $0.bindMemory(to: UInt8.self).baseAddress!) }            
         offset += MemoryLayout<String>.size  
 
-        
-        
         print("\(recibedNick): \(recibedText)")
         //fflush(stdout)
 

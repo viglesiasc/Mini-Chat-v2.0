@@ -71,7 +71,7 @@ class ChatServer {
             //let serverSocket = try Socket.create(family: .inet, type: .datagram, proto: .udp)
 
             // recepción de mensajes en hilo paralelo
-            self.datagramReader = DatagramReader(socket: self.serverSocket, capacity: 1024){ (buffer, bytesRead, address) in 
+            self.datagramReader = DatagramReader(socket: self.serverSocket, capacity: 2048){ (buffer, bytesRead, address) in 
                 self.handler(buffer: buffer, bytesRead: bytesRead, address:address!)
 
             }
@@ -123,7 +123,7 @@ extension ChatServer {
     func handler(buffer: Data, bytesRead: Int, address: Socket.Address) {
         do{
             var readBuffer = buffer
-            var writeBuffer = Data(capacity: 1024)
+            var writeBuffer = Data(capacity: 2048)
 
             
 
@@ -174,7 +174,7 @@ extension ChatServer {
 
                     // -- send a message to other clients
                     offset = 0
-                    let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) joins")
+                    let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) joins the chat")
                     withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                     withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
                     withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
@@ -200,7 +200,7 @@ extension ChatServer {
                 // -- send a message to other clients
                 writeBuffer.removeAll()
                 offset = 0
-                let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) leaves")
+                let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) leaves the chat")
                 withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                 withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
                 withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
