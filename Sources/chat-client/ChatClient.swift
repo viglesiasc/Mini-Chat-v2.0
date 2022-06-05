@@ -69,7 +69,7 @@ class ChatClient {
                 } else {
                     
                     print(">> ", terminator:"")
-                    fflush(stdout)
+                    
                     writeBuffer.removeAll()
                     let message = WriterMessage(type: ChatMessage.Writer, nick: nick, text: readLine()!)
                     if message.text != ".quit" {
@@ -118,12 +118,15 @@ extension ChatClient {
         offset += MemoryLayout<String>.size 
 
         let recibedText = readBuffer.advanced(by:offset).withUnsafeBytes { String(cString: $0.bindMemory(to: UInt8.self).baseAddress!) }            
-        offset += MemoryLayout<String>.size  
+        //offset += MemoryLayout<String>.size  
 
+        print()
         print("\(recibedNick): \(recibedText)")
-        //fflush(stdout)
+        print(">> ", terminator:"")
+        fflush(stdout)
 
         readBuffer.removeAll()
+        //fflush(stdout)
     }
     
 }
