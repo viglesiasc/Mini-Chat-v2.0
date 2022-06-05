@@ -159,7 +159,21 @@ extension ChatServer {
                     let welcomeMessage = WelcomeMessage(type: ChatMessage.Welcome, accepted: !(repeatedClient))
                     if !repeatedClient {
                         clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date()))
-                        print("INIT received from \(nickReceived)")                        
+                        print("INIT received from \(nickReceived)")   
+                        // -- send a message to other clients
+                        writeBuffer.removeAll()
+                        offset = 0
+                        let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) joins the chat")
+                        withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
+                        withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
+                        withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
+                        try clients.forEach { client in
+                            if client.nick != nickReceived {
+                                try self.serverSocket.write(from: writeBuffer, to: client.address)
+                                //print("\(client.address)")
+                            }
+                        }
+                        writeBuffer.removeAll()                     
                     } else {
                         print("INIT received from \(nickReceived): IGNORED. Nick already used")
                     }
@@ -172,19 +186,7 @@ extension ChatServer {
                     try serverSocket.write(from: writeBuffer, to: address)
                     writeBuffer.removeAll()
 
-                    // -- send a message to other clients
-                    offset = 0
-                    let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) joins the chat")
-                    withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
-                    withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
-                    withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
-                    try clients.forEach { client in
-                        if client.nick != nickReceived {
-                            try self.serverSocket.write(from: writeBuffer, to: client.address)
-                            //print("\(client.address)")
-                        }
-                    }
-                    writeBuffer.removeAll()
+                    
                 } catch {
                     print("\(error)")
                 }
