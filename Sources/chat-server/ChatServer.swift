@@ -118,22 +118,17 @@ class ChatServer {
 
 // Add additional functions using extensions
 extension ChatServer {
-    
 
     func handler(buffer: Data, bytesRead: Int, address: Socket.Address) {
         do{
             var readBuffer = buffer
             var writeBuffer = Data(capacity: 2048)
 
-            
-
             func checkCapacity(_ value: Int) throws { 
-               if value >= clients.maxCapacity {
+               if value > clients.maxCapacity {
                     throw CollectionsError.maxCapacityReached
                 }
             }
-
-
 
             // -- recibir tipo de mensaje
             var offset: Int = 0
@@ -146,24 +141,23 @@ extension ChatServer {
             }            
             offset += nickReceived.count + 1
 
-                    
-
 
             switch typeReceived {
             case .Init:
                 
                 do {
                     // -- verify the capacity of client list and if the nick is already used
-                    try checkCapacity(clients.count)
+                    
                     let repeatedClient = clients.contains {$0.nick == nickReceived}
                     let welcomeMessage = WelcomeMessage(type: ChatMessage.Welcome, accepted: !(repeatedClient))
                     if !repeatedClient {
+                        
                         clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date()))
                         print("INIT received from \(nickReceived)")   
                         // -- send a message to other clients
                         writeBuffer.removeAll()
                         offset = 0
-                        let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) joins the chat")
+                        let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) joins")
                         withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                         withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
                         withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
@@ -186,9 +180,25 @@ extension ChatServer {
                     try serverSocket.write(from: writeBuffer, to: address)
                     writeBuffer.removeAll()
 
+                    // -- verify capacity
+                    try checkCapacity(clients.count)
                     
                 } catch {
-                    print("\(error)")
+                    // -- when maxCapacity is reached
+                    let bannedClient = clients.dequeue()        // -- remove the client from ACTIVE CLIENTS list
+                    inactiveClients.push(OldClient(nick: bannedClient!.nick, lastUpdateTime: Date()))  // -- add the client from OLD CLIENTS stack
+                    // -- send a message to all client saying the client is banned
+                    writeBuffer.removeAll()
+                    offset = 0
+                    let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(bannedClient!.nick) banned")
+                    withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
+                    withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
+                    withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
+                    try clients.forEach { client in
+                        try self.serverSocket.write(from: writeBuffer, to: client.address)
+                    }
+                    writeBuffer.removeAll()
+                    //print("\(error)")
                 }
                 
                 
@@ -202,7 +212,7 @@ extension ChatServer {
                 // -- send a message to other clients
                 writeBuffer.removeAll()
                 offset = 0
-                let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) leaves the chat")
+                let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) leaves")
                 withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                 withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
                 withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
@@ -243,9 +253,7 @@ extension ChatServer {
                     }
                     
                 }
-                
                 writeBuffer.removeAll()
-
             }
             readBuffer.removeAll()
             //print("\(clients)")
