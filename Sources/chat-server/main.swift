@@ -19,11 +19,15 @@ var recibedType: ChatMessage
 let port = Int(CommandLine.arguments[1])!
 let readMaxCapacity = Int(CommandLine.arguments[2])!
 
-do{
-    let chatServer = try ChatServer(port: port)
+if readMaxCapacity >= 2 && readMaxCapacity <= 50 {
+    do{
+        let chatServer = try ChatServer(port: port)
 
-    try chatServer.run()
+        try chatServer.run()
 
- } catch let error {
-     print("Connection error: \(error)")
- }
+    } catch let error {
+        print("Connection error: \(error)")
+    }
+} else {
+    print("Invalid value for MaxCapacity")
+}
