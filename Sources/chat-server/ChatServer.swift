@@ -197,6 +197,7 @@ extension ChatServer {
                     try clients.forEach { client in
                         try self.serverSocket.write(from: writeBuffer, to: client.address)
                     }
+                    try self.serverSocket.write(from: writeBuffer, to: bannedClient!.address)
                     writeBuffer.removeAll()
                     //print("\(error)")
                 }
