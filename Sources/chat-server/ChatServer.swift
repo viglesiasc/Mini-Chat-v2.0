@@ -130,6 +130,8 @@ extension ChatServer {
                 }
             }
 
+
+
             // -- recibir tipo de mensaje
             var offset: Int = 0
             let typeReceived = readBuffer.withUnsafeBytes { $0.load(as: ChatMessage.self) }            
@@ -151,7 +153,7 @@ extension ChatServer {
                     let welcomeMessage = WelcomeMessage(type: ChatMessage.Welcome, accepted: !(repeatedClient))
                     if !repeatedClient {
                         clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date()))
-                        print("INIT received from \(nickReceived)")   
+                        print("INIT received from \(nickReceived): ACCEPTED")   
                         // -- send a message to other clients
                         writeBuffer.removeAll()
                         offset = 0
@@ -205,58 +207,67 @@ extension ChatServer {
                 
 
             case .Logout:
-                print("LOGOUT received from \(nickReceived)")
-                // -- add client to OLD CLIENTS list
-                inactiveClients.push(OldClient(nick: nickReceived, lastUpdateTime: Date()))
-                // -- remevo the client from ACTIVE CLIENTS list
-                clients.remove {$0.nick == nickReceived}
-                // -- send a message to other clients
-                writeBuffer.removeAll()
-                offset = 0
-                let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) leaves the chat")
-                withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
-                withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
-                //withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
-                serverMessage.text.utf8CString.withUnsafeBytes { writeBuffer.append(contentsOf: $0) }
-                try clients.forEach { client in
-                    if client.nick != nickReceived {
-                        try self.serverSocket.write(from: writeBuffer, to: client.address)
-                        //print("\(client.address)")
+                let isKnownclient = clients.contains {$0.nick == nickReceived}
+                if isKnownclient {
+                    print("LOGOUT received from \(nickReceived)")
+                    // -- add client to OLD CLIENTS list
+                    inactiveClients.push(OldClient(nick: nickReceived, lastUpdateTime: Date()))
+                    // -- remevo the client from ACTIVE CLIENTS list
+                    clients.remove {$0.nick == nickReceived}
+                    // -- send a message to other clients
+                    writeBuffer.removeAll()
+                    offset = 0
+                    let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) leaves the chat")
+                    withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
+                    withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
+                    //withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
+                    serverMessage.text.utf8CString.withUnsafeBytes { writeBuffer.append(contentsOf: $0) }
+                    try clients.forEach { client in
+                        if client.nick != nickReceived {
+                            try self.serverSocket.write(from: writeBuffer, to: client.address)
+                            //print("\(client.address)")
+                        }
                     }
+                    writeBuffer.removeAll()
+                } else {
+                    print("LOGOUT received from unknown client. IGNORED")
                 }
-                writeBuffer.removeAll()
-
                 
             
             default:
-                // -- recibir Text
-                let textReceived = readBuffer.advanced(by:offset).withUnsafeBytes {
-                    String(cString: $0.bindMemory(to: UInt8.self).baseAddress!)
-                } 
-                print("WRITER received from \(nickReceived): \(textReceived)")
+                let isKnownclient = clients.contains {$0.nick == nickReceived}
+                if isKnownclient {
+                    // -- recibir Text
+                    let textReceived = readBuffer.advanced(by:offset).withUnsafeBytes {
+                        String(cString: $0.bindMemory(to: UInt8.self).baseAddress!)
+                    } 
+                    print("WRITER received from \(nickReceived): \(textReceived)")
 
-                // -- build response message to all clients
-                writeBuffer.removeAll()
-                offset = 0
-                let serverMessage = ServerMessage(type: ChatMessage.Server, nick: nickReceived, text: textReceived)
-                withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
-                withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
-                //withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
-                serverMessage.text.utf8CString.withUnsafeBytes { writeBuffer.append(contentsOf: $0) }
-                
-                // -- update date of the client
-                clients.remove {$0.nick == nickReceived}
-                clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date()))
-
-                // -- send message to all clients
-                try clients.forEach { client in
-                    if client.nick != nickReceived {
-                        try self.serverSocket.write(from: writeBuffer, to: client.address)
-                        //print("\(client.address)")
-                    }
+                    // -- build response message to all clients
+                    writeBuffer.removeAll()
+                    offset = 0
+                    let serverMessage = ServerMessage(type: ChatMessage.Server, nick: nickReceived, text: textReceived)
+                    withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
+                    withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
+                    //withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
+                    serverMessage.text.utf8CString.withUnsafeBytes { writeBuffer.append(contentsOf: $0) }
                     
+                    // -- update date of the client
+                    clients.remove {$0.nick == nickReceived}
+                    clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date()))
+
+                    // -- send message to all clients
+                    try clients.forEach { client in
+                        if client.nick != nickReceived {
+                            try self.serverSocket.write(from: writeBuffer, to: client.address)
+                            //print("\(client.address)")
+                        }
+                        
+                    }
+                    writeBuffer.removeAll()
+                } else {
+                    print("WRITER received from unknown client. IGNORED")
                 }
-                writeBuffer.removeAll()
             }
             readBuffer.removeAll()
             //print("\(clients)")
