@@ -146,21 +146,20 @@ extension ChatServer {
             case .Init:
                 
                 do {
-                    // -- verify the capacity of client list and if the nick is already used
-                    
+                    // -- verify if the new client nick is already in the chat
                     let repeatedClient = clients.contains {$0.nick == nickReceived}
                     let welcomeMessage = WelcomeMessage(type: ChatMessage.Welcome, accepted: !(repeatedClient))
                     if !repeatedClient {
-                        
                         clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date()))
                         print("INIT received from \(nickReceived)")   
                         // -- send a message to other clients
                         writeBuffer.removeAll()
                         offset = 0
-                        let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) joins")
+                        let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) joins the chat")
                         withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                         withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
-                        withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
+                        //withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
+                        serverMessage.text.utf8CString.withUnsafeBytes { writeBuffer.append(contentsOf: $0) }
                         try clients.forEach { client in
                             if client.nick != nickReceived {
                                 try self.serverSocket.write(from: writeBuffer, to: client.address)
@@ -190,10 +189,11 @@ extension ChatServer {
                     // -- send a message to all client saying the client is banned
                     writeBuffer.removeAll()
                     offset = 0
-                    let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(bannedClient!.nick) banned")
+                    let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(bannedClient!.nick) banned for being idle too long")
                     withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                     withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
-                    withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
+                    //withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
+                    serverMessage.text.utf8CString.withUnsafeBytes { writeBuffer.append(contentsOf: $0) }
                     try clients.forEach { client in
                         try self.serverSocket.write(from: writeBuffer, to: client.address)
                     }
@@ -213,10 +213,11 @@ extension ChatServer {
                 // -- send a message to other clients
                 writeBuffer.removeAll()
                 offset = 0
-                let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) leaves")
+                let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) leaves the chat")
                 withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                 withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
-                withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
+                //withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
+                serverMessage.text.utf8CString.withUnsafeBytes { writeBuffer.append(contentsOf: $0) }
                 try clients.forEach { client in
                     if client.nick != nickReceived {
                         try self.serverSocket.write(from: writeBuffer, to: client.address)
@@ -240,7 +241,8 @@ extension ChatServer {
                 let serverMessage = ServerMessage(type: ChatMessage.Server, nick: nickReceived, text: textReceived)
                 withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                 withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
-                withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
+                //withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
+                serverMessage.text.utf8CString.withUnsafeBytes { writeBuffer.append(contentsOf: $0) }
                 
                 // -- update date of the client
                 clients.remove {$0.nick == nickReceived}
