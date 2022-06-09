@@ -27,17 +27,16 @@ class ChatClient {
     }
         
     func run() throws {
-        // Your code here
-        
+        // Your code here        
         var nonStop: Bool = true
         var ftu: Bool = true
         while nonStop {
             do{
                 guard let serverAddress = Socket.createAddress(for: host, on: Int32(port)) else {
-                    print("Error creating Address")
-                    exit(1)
+                    throw ChatClientError.wrongAddress
                 }
                 let clientSocket = try Socket.create(family: .inet, type: .datagram, proto: .udp)
+                try clientSocket.setReadTimeout(value: 10 + 1000)
                 var writeBuffer = Data(capacity: 1000)
                 var readBuffer = Data(capacity: 1000)
                 
@@ -48,12 +47,18 @@ class ChatClient {
                     ftu = false
                     try clientSocket.write(from: writeBuffer, to: serverAddress)         
 
-                    // -- recibir mensaje WELCOME  
+                    // -- receive WELCOME message
                     var offset = 0
                     readBuffer.removeAll()
-                    let (_, _) = try clientSocket.readDatagram(into: &readBuffer)
+                    let (bytesRead, _) = try clientSocket.readDatagram(into: &readBuffer)
+                    if bytesRead == 0 {
+                        print("Server unreachable")
+                    }
                     let typeReceived = readBuffer.withUnsafeBytes { $0.load(as: ChatMessage.self) } 
-                    guard typeReceived == ChatMessage.Welcome else { return nonStop = false}
+                    // -- check it's a WELCOME message
+                    guard typeReceived == ChatMessage.Welcome else { 
+                        throw ChatClientError.protocolError
+                    }
                     offset += MemoryLayout<ChatMessage>.size
                     let accepted = readBuffer.withUnsafeBytes { $0.load(fromByteOffset: offset, as: Bool.self) } 
                     if accepted {
@@ -95,7 +100,7 @@ class ChatClient {
                 }
 
             } catch let error {
-                    print("Connection error: \(error)")
+                    throw ChatClientError.networkError(socketError: error)
             }
         }
     }
@@ -106,27 +111,33 @@ class ChatClient {
 extension ChatClient {
     func handler(buffer: Data, bytesRead: Int, address: Socket.Address, clientSocket: Socket){
         
-        var readBuffer = buffer
-                
+        var readBuffer = buffer 
         var offset = 0
            
-        // -- recibir tipo de mensaje        
-        let _ = readBuffer.withUnsafeBytes { $0.load(as: ChatMessage.self) }            
-        offset += MemoryLayout<ChatMessage>.size
+        do{
+            // -- receive type of message       
+            let typeReceived = readBuffer.withUnsafeBytes { $0.load(as: ChatMessage.self) }            
+            offset += MemoryLayout<ChatMessage>.size
+            // -- check if it's a server message
+            guard typeReceived == ChatMessage.Server else { 
+                throw ChatClientError.protocolError
+            }
 
-        let recibedNick = readBuffer.advanced(by:offset).withUnsafeBytes { String(cString: $0.bindMemory(to: UInt8.self).baseAddress!) }            
-        offset += MemoryLayout<String>.size 
+            let nickReceived = readBuffer.advanced(by:offset).withUnsafeBytes { String(cString: $0.bindMemory(to: UInt8.self).baseAddress!) }            
+            offset += MemoryLayout<String>.size 
 
-        let recibedText = readBuffer.advanced(by:offset).withUnsafeBytes { String(cString: $0.bindMemory(to: UInt8.self).baseAddress!) }            
-        //offset += MemoryLayout<String>.size  
+            let textReceived = readBuffer.advanced(by:offset).withUnsafeBytes { String(cString: $0.bindMemory(to: UInt8.self).baseAddress!) }            
+            //offset += MemoryLayout<String>.size  
 
-        print()
-        print("\(recibedNick): \(recibedText)")
-        print(">> ", terminator:"")
-        fflush(stdout)
+            print()
+            print("\(nickReceived): \(textReceived)")
+            print(">> ", terminator:"")
+            fflush(stdout)
 
-        readBuffer.removeAll()
-        //fflush(stdout)
+            readBuffer.removeAll()
+            //fflush(stdout)
+        } catch let error {
+            print("\(error)")
+        }
     }
-    
 }

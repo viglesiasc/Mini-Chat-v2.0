@@ -146,7 +146,10 @@ extension ChatServer {
 
             switch typeReceived {
             case .Init:
-                
+                // -- check protocol
+                guard typeReceived == ChatMessage.Init else { 
+                    throw ChatServerError.protocolError
+                }
                 do {
                     // -- verify if the new client nick is already in the chat
                     let repeatedClient = clients.contains {$0.nick == nickReceived}
@@ -207,6 +210,10 @@ extension ChatServer {
                 
 
             case .Logout:
+                // -- check protocol
+                guard typeReceived == ChatMessage.Logout else { 
+                    throw ChatServerError.protocolError
+                }
                 let isKnownclient = clients.contains {$0.nick == nickReceived}
                 if isKnownclient {
                     print("LOGOUT received from \(nickReceived)")
@@ -235,6 +242,11 @@ extension ChatServer {
                 
             
             default:
+                // -- check protocol
+                guard typeReceived == ChatMessage.Writer else { 
+                    throw ChatServerError.protocolError
+                }
+                // -- check if the client is in the chat
                 let isKnownclient = clients.contains {$0.nick == nickReceived}
                 if isKnownclient {
                     // -- recibir Text
