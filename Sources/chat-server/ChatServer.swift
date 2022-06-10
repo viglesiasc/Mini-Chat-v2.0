@@ -155,7 +155,7 @@ extension ChatServer {
                     let repeatedClient = clients.contains {$0.nick == nickReceived}
                     let welcomeMessage = WelcomeMessage(type: ChatMessage.Welcome, accepted: !(repeatedClient))
                     if !repeatedClient {
-                        clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date()))
+                        try! clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date()))
                         print("INIT received from \(nickReceived): ACCEPTED")   
                         // -- send a message to other clients
                         writeBuffer.removeAll()
@@ -266,7 +266,7 @@ extension ChatServer {
                     
                     // -- update date of the client
                     clients.remove {$0.nick == nickReceived}
-                    clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date()))
+                    try! clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date()))
 
                     // -- send message to all clients
                     try clients.forEach { client in

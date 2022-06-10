@@ -51,8 +51,9 @@ class ChatClient {
                     var offset = 0
                     readBuffer.removeAll()
                     let (bytesRead, _) = try clientSocket.readDatagram(into: &readBuffer)
-                    if bytesRead == 0 {
+                    guard bytesRead != 0 else {
                         print("Server unreachable")
+                        return nonStop = false
                     }
                     let typeReceived = readBuffer.withUnsafeBytes { $0.load(as: ChatMessage.self) } 
                     // -- check it's a WELCOME message

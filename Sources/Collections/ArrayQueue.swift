@@ -5,9 +5,14 @@ public struct ArrayQueue<Element> : Queue {
 
     public var maxCapacity: Int 
     
-    public mutating func enqueue(_ value: Element) {
+    public mutating func enqueue(_ value: Element) throws {
         // Your code here
-        storage.append(value)
+        if count <= maxCapacity {
+            storage.append(value)
+        } else {
+            throw CollectionsError.maxCapacityReached
+        }
+        
     }
     
     public mutating func dequeue() -> Element? {
