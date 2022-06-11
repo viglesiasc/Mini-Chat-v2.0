@@ -56,9 +56,6 @@ class ChatServer {
 
     public var clients = ArrayQueue<ActiveClient>(maxCapacity: readMaxCapacity)
     public var inactiveClients = ArrayStack<OldClient>()
-
-    
-    
     
     init(port: Int) throws {
         self.port = port
@@ -68,21 +65,21 @@ class ChatServer {
     func run() throws {
         do {
             try serverSocket.listen(on: port)
-            //let serverSocket = try Socket.create(family: .inet, type: .datagram, proto: .udp)
 
-            // recepción de mensajes en hilo paralelo
+            // -- receive messages in background
             self.datagramReader = DatagramReader(socket: self.serverSocket, capacity: 2048){ (buffer, bytesRead, address) in 
                 self.handler(buffer: buffer, bytesRead: bytesRead, address:address!)
 
             }
 
+            // -- convert the data format as we want
             func convertDate(_ date: Date) -> String{
                 let df = DateFormatter()
                 df.dateFormat = "yy-MMM-dd HH:mm"
                 return df.string(from: date)
             }
 
-
+            // -- read from the command line
             repeat{
                 let adminCommand: String = readLine()!
                 if adminCommand.lowercased() == "l" {
@@ -130,20 +127,18 @@ extension ChatServer {
                 }
             }
 
-
-
-            // -- recibir tipo de mensaje
+            // -- receive message type
             var offset: Int = 0
             let typeReceived = readBuffer.withUnsafeBytes { $0.load(as: ChatMessage.self) }            
             offset += MemoryLayout<ChatMessage>.size
 
-            // -- recibir Nick
+            // -- receive nick
             let nickReceived = readBuffer.advanced(by:offset).withUnsafeBytes {
                 String(cString: $0.bindMemory(to: UInt8.self).baseAddress!)
             }            
             offset += nickReceived.count + 1
 
-
+            // -- depending on the type of the message...
             switch typeReceived {
             case .Init:
                 // -- check protocol
@@ -163,12 +158,10 @@ extension ChatServer {
                         let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) joins the chat")
                         withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                         withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
-                        //withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
                         serverMessage.text.utf8CString.withUnsafeBytes { writeBuffer.append(contentsOf: $0) }
                         try clients.forEach { client in
                             if client.nick != nickReceived {
                                 try self.serverSocket.write(from: writeBuffer, to: client.address)
-                                //print("\(client.address)")
                             }
                         }
                         writeBuffer.removeAll()                     
@@ -197,14 +190,12 @@ extension ChatServer {
                     let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(bannedClient!.nick) banned for being idle too long")
                     withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                     withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
-                    //withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
                     serverMessage.text.utf8CString.withUnsafeBytes { writeBuffer.append(contentsOf: $0) }
                     try clients.forEach { client in
                         try self.serverSocket.write(from: writeBuffer, to: client.address)
                     }
                     try self.serverSocket.write(from: writeBuffer, to: bannedClient!.address)
                     writeBuffer.removeAll()
-                    //print("\(error)")
                 }
                 
                 
@@ -214,12 +205,12 @@ extension ChatServer {
                 guard typeReceived == ChatMessage.Logout else { 
                     throw ChatServerError.protocolError
                 }
-                let isKnownclient = clients.contains {$0.nick == nickReceived}
+                let isKnownclient = clients.contains {$0.nick == nickReceived && $0.address == address}
                 if isKnownclient {
                     print("LOGOUT received from \(nickReceived)")
                     // -- add client to OLD CLIENTS list
                     inactiveClients.push(OldClient(nick: nickReceived, lastUpdateTime: Date()))
-                    // -- remevo the client from ACTIVE CLIENTS list
+                    // -- remove the client from ACTIVE CLIENTS list
                     clients.remove {$0.nick == nickReceived}
                     // -- send a message to other clients
                     writeBuffer.removeAll()
@@ -227,12 +218,10 @@ extension ChatServer {
                     let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) leaves the chat")
                     withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                     withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
-                    //withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
                     serverMessage.text.utf8CString.withUnsafeBytes { writeBuffer.append(contentsOf: $0) }
                     try clients.forEach { client in
                         if client.nick != nickReceived {
                             try self.serverSocket.write(from: writeBuffer, to: client.address)
-                            //print("\(client.address)")
                         }
                     }
                     writeBuffer.removeAll()
@@ -247,9 +236,9 @@ extension ChatServer {
                     throw ChatServerError.protocolError
                 }
                 // -- check if the client is in the chat
-                let isKnownclient = clients.contains {$0.nick == nickReceived}
+                let isKnownclient = clients.contains { $0.nick == nickReceived && $0.address == address }
                 if isKnownclient {
-                    // -- recibir Text
+                    // -- receive text
                     let textReceived = readBuffer.advanced(by:offset).withUnsafeBytes {
                         String(cString: $0.bindMemory(to: UInt8.self).baseAddress!)
                     } 
@@ -261,7 +250,6 @@ extension ChatServer {
                     let serverMessage = ServerMessage(type: ChatMessage.Server, nick: nickReceived, text: textReceived)
                     withUnsafeBytes(of: serverMessage.type) { writeBuffer.append(contentsOf: $0) }
                     withUnsafeBytes(of: serverMessage.nick) { writeBuffer.append(contentsOf: $0) }
-                    //withUnsafeBytes(of: serverMessage.text) { writeBuffer.append(contentsOf: $0) }
                     serverMessage.text.utf8CString.withUnsafeBytes { writeBuffer.append(contentsOf: $0) }
                     
                     // -- update date of the client
@@ -272,9 +260,7 @@ extension ChatServer {
                     try clients.forEach { client in
                         if client.nick != nickReceived {
                             try self.serverSocket.write(from: writeBuffer, to: client.address)
-                            //print("\(client.address)")
                         }
-                        
                     }
                     writeBuffer.removeAll()
                 } else {
@@ -282,7 +268,6 @@ extension ChatServer {
                 }
             }
             readBuffer.removeAll()
-            //print("\(clients)")
         } catch let error { 
             print("Connection error: \(error)")
         }
