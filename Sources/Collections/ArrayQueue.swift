@@ -7,7 +7,7 @@ public struct ArrayQueue<Element> : Queue {
     
     public mutating func enqueue(_ value: Element) throws {
         // Your code here
-        if count <= maxCapacity {
+        if count != maxCapacity {
             storage.append(value)
         } else {
             throw CollectionsError.maxCapacityReached

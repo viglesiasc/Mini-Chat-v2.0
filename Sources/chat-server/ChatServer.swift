@@ -75,7 +75,7 @@ class ChatServer {
             // -- convert the data format as we want
             func convertDate(_ date: Date) -> String{
                 let df = DateFormatter()
-                df.dateFormat = "yy-MMM-dd HH:mm"
+                df.dateFormat = "yy-MMM-dd HH:mm:ss"
                 return df.string(from: date)
             }
 
@@ -87,7 +87,7 @@ class ChatServer {
                     print("==============")
                     clients.forEach { client in
                         let (clientIP, clientPort) = Socket.hostnameAndPort(from: client.address)!
-                        print("\(client.nick) \(clientIP):\(clientPort) \(convertDate(client.lastUpdateTime))")
+                        print("\(client.nick) (\(clientIP):\(clientPort)): \(convertDate(client.lastUpdateTime))")
 
                     }
                     print("")
@@ -121,12 +121,6 @@ extension ChatServer {
             var readBuffer = buffer
             var writeBuffer = Data(capacity: 2048)
 
-            func checkCapacity(_ value: Int) throws { 
-               if value > clients.maxCapacity {
-                    throw CollectionsError.maxCapacityReached
-                }
-            }
-
             // -- receive message type
             var offset: Int = 0
             let typeReceived = readBuffer.withUnsafeBytes { $0.load(as: ChatMessage.self) }            
@@ -150,9 +144,15 @@ extension ChatServer {
                     let repeatedClient = clients.contains {$0.nick == nickReceived}
                     let welcomeMessage = WelcomeMessage(type: ChatMessage.Welcome, accepted: !(repeatedClient))
                     if !repeatedClient {
-                        try! clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date()))
-                        print("INIT received from \(nickReceived): ACCEPTED")   
-                        // -- send a message to other clients
+                        // -- send first message to client
+                        writeBuffer.removeAll()
+                        offset = 0
+                        withUnsafeBytes(of: welcomeMessage.type) { writeBuffer.append(contentsOf: $0) }
+                        withUnsafeBytes(of: welcomeMessage.accepted) { writeBuffer.append(contentsOf: $0) }
+                        try serverSocket.write(from: writeBuffer, to: address)
+                        writeBuffer.removeAll()
+
+                        // -- send a message to other clients saying there's a new client
                         writeBuffer.removeAll()
                         offset = 0
                         let serverMessage = ServerMessage(type: ChatMessage.Server, nick: "server", text: "\(nickReceived) joins the chat")
@@ -164,26 +164,26 @@ extension ChatServer {
                                 try self.serverSocket.write(from: writeBuffer, to: client.address)
                             }
                         }
-                        writeBuffer.removeAll()                     
+                        writeBuffer.removeAll() 
+                        print("INIT received from \(nickReceived): ACCEPTED")   
+
+                        // -- check capacity
+                        do{
+                            try clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date()))
+                        } catch { 
+                            throw CollectionsError.maxCapacityReached
+                        }
+         
                     } else {
                         print("INIT received from \(nickReceived): IGNORED. Nick already used")
                     }
-
-                    // -- send first message to client
-                    writeBuffer.removeAll()
-                    offset = 0
-                    withUnsafeBytes(of: welcomeMessage.type) { writeBuffer.append(contentsOf: $0) }
-                    withUnsafeBytes(of: welcomeMessage.accepted) { writeBuffer.append(contentsOf: $0) }
-                    try serverSocket.write(from: writeBuffer, to: address)
-                    writeBuffer.removeAll()
-
-                    // -- verify capacity
-                    try checkCapacity(clients.count)
                     
                 } catch {
                     // -- when maxCapacity is reached
                     let bannedClient = clients.dequeue()        // -- remove the client from ACTIVE CLIENTS list
                     inactiveClients.push(OldClient(nick: bannedClient!.nick, lastUpdateTime: Date()))  // -- add the client from OLD CLIENTS stack
+                    try! clients.enqueue(ActiveClient(nick: nickReceived, address: address, lastUpdateTime: Date())) // -- try (again) to add a new client to the list
+                    
                     // -- send a message to all client saying the client is banned
                     writeBuffer.removeAll()
                     offset = 0
@@ -210,8 +210,10 @@ extension ChatServer {
                     print("LOGOUT received from \(nickReceived)")
                     // -- add client to OLD CLIENTS list
                     inactiveClients.push(OldClient(nick: nickReceived, lastUpdateTime: Date()))
+                    
                     // -- remove the client from ACTIVE CLIENTS list
                     clients.remove {$0.nick == nickReceived}
+
                     // -- send a message to other clients
                     writeBuffer.removeAll()
                     offset = 0

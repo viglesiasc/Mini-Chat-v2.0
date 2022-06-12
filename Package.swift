@@ -23,5 +23,8 @@ let package = Package(
         .testTarget(
             name: "CollectionsTests",
             dependencies: ["Collections"]),
+        .target(
+            name: "queue-test",
+            dependencies: ["Collections"]),
     ]
 )
