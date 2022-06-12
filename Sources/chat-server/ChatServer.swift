@@ -176,6 +176,12 @@ extension ChatServer {
          
                     } else {
                         print("INIT received from \(nickReceived): IGNORED. Nick already used")
+                        writeBuffer.removeAll()
+                        offset = 0
+                        withUnsafeBytes(of: welcomeMessage.type) { writeBuffer.append(contentsOf: $0) }
+                        withUnsafeBytes(of: welcomeMessage.accepted) { writeBuffer.append(contentsOf: $0) }
+                        try serverSocket.write(from: writeBuffer, to: address)
+                        writeBuffer.removeAll()
                     }
                     
                 } catch {
@@ -210,7 +216,7 @@ extension ChatServer {
                     print("LOGOUT received from \(nickReceived)")
                     // -- add client to OLD CLIENTS list
                     inactiveClients.push(OldClient(nick: nickReceived, lastUpdateTime: Date()))
-                    
+
                     // -- remove the client from ACTIVE CLIENTS list
                     clients.remove {$0.nick == nickReceived}
 
