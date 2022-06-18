@@ -14,7 +14,7 @@ public protocol Queue {
     associatedtype Element
     
     var count: Int { get }
-    //var maxCapacity: Int { get }
+    var maxCapacity: Int { get }
 
     mutating func enqueue(_ value: Element) throws
     mutating func dequeue() -> Element?
@@ -22,7 +22,7 @@ public protocol Queue {
     func forEach(_ body: (Element) throws -> Void) rethrows 
     
     func contains(where predicate: (Element) -> Bool) -> Bool
-    //func findFirst(where predicate: (Element) -> Bool) -> Element?
+    func findFirst(where predicate: (Element) -> Bool) -> Element?
     
     mutating func remove(where predicate: (Element) -> Bool)
 }

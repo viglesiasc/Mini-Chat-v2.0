@@ -1,11 +1,5 @@
 import Foundation
 
-// Read command-line arguments
-
-// Create ChatServer
-
-// Run ChatServer
-
 import Socket
 import Foundation
 import ChatMessage
@@ -13,8 +7,6 @@ import Collections
 
 var offset: Int = 0
 var recibedType: ChatMessage
-
-
 
 let port = Int(CommandLine.arguments[1])!
 let readMaxCapacity = Int(CommandLine.arguments[2])!

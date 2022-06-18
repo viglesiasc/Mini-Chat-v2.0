@@ -26,7 +26,10 @@ public struct ArrayQueue<Element> : Queue {
     public func forEach(_ body: (Element) throws -> Void) rethrows {
         try storage.forEach {try body($0)}
     }
-    
+
+    public func findFirst(where predicate: (Element) -> Bool) -> Element? {
+        storage.first(where: predicate)
+    }    
 
     public init (maxCapacity: Int){
         self.maxCapacity = maxCapacity

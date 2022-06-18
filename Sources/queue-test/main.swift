@@ -19,9 +19,7 @@ func processAll<S: Queue>(queue: inout S) {
     print("removed: ", terminator:"")
     while queue.count != 0 {
         t = queue.dequeue()
-    //    if t != nil {
-            print("\(t!) ", terminator:"")
-        //}
+        print("\(t!) ", terminator:"")
     } 
     print()
 }

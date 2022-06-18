@@ -40,7 +40,6 @@ class ChatClient {
 
         while nonStop {
             do{
-                                
                 if ftu {
                     let initMessage = InitMessage(type: ChatMessage.Init, nick: nick)
                     withUnsafeBytes(of: initMessage.type) { writeBuffer.append(contentsOf: $0) }

@@ -1,25 +1,10 @@
 import Foundation
 
-// Read command-line arguments
-
-// Create ChatClient
-
-// Run ChatClient
 
 import Foundation
 import Socket
 import ChatMessage
 import Glibc
-
-// Read command-line argumens
-
-// Create ChatClient
-
-// Run ChatClient
-
-
-//mi codigo...
-
 
 
 let readHost = CommandLine.arguments[1]
