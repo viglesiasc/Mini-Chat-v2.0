@@ -34,7 +34,7 @@ class ChatClient {
             throw ChatClientError.wrongAddress
         }
         let clientSocket = try Socket.create(family: .inet, type: .datagram, proto: .udp)
-        try clientSocket.setReadTimeout(value: 10 + 1000)
+        try clientSocket.setReadTimeout(value: 10 * 1000)
         var writeBuffer = Data(capacity: 1000)
         var readBuffer = Data(capacity: 1000)
 
